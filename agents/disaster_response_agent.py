@@ -97,10 +97,8 @@ class DisasterResponseAgent:
             self.nb_metrics
         ) = self.ml_manager.execute_ml_pipeline()     
 
-        self.simulation_window = (
-            SimulationWindow(
-                environment
-            )
+        self.simulation_window = SimulationWindow(
+            environment
         )
         self.simulation_window.dashboard_renderer.knn_metrics = (
             self.knn_metrics

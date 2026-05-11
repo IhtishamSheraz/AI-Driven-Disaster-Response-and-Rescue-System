@@ -38,15 +38,18 @@ class SimulationWindow:
         # WINDOW SIZE
         # =====================================
 
-        self.window_width = 1200
-        self.window_height = 650
+        self.window_width = WINDOW_WIDTH
+        self.window_height = WINDOW_HEIGHT
+        self.min_width = 1000
+        self.min_height = 620
+        self.fullscreen = False
 
         self.screen = pygame.display.set_mode(
-
             (
                 self.window_width,
                 self.window_height
-            )
+            ),
+            pygame.RESIZABLE
         )
 
         pygame.display.set_caption(
@@ -114,6 +117,25 @@ class SimulationWindow:
         )
 
         self.disaster_interval = 8000
+
+    def _apply_window_mode(self):
+        if self.fullscreen:
+            self.screen = pygame.display.set_mode(
+                (0, 0),
+                pygame.FULLSCREEN
+            )
+            self.window_width, self.window_height = self.screen.get_size()
+            return
+
+        self.window_width = max(self.min_width, self.window_width)
+        self.window_height = max(self.min_height, self.window_height)
+        self.screen = pygame.display.set_mode(
+            (
+                self.window_width,
+                self.window_height
+            ),
+            pygame.RESIZABLE
+        )
 
     # ============================================
     # ALERT SYSTEM
@@ -488,8 +510,6 @@ class SimulationWindow:
 
         self.draw_alert_popup()
 
-        pygame.display.update()
-
     # ============================================
     # HANDLE EVENTS
     # ============================================
@@ -511,15 +531,21 @@ class SimulationWindow:
                 pygame.quit()
 
                 return False
+            if event.type == pygame.VIDEORESIZE and not self.fullscreen:
+                self.window_width = event.w
+                self.window_height = event.h
+                self._apply_window_mode()
 
             # =====================================
             # MOUSE CLICK
             # =====================================
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if (
+                event.type == pygame.MOUSEBUTTONDOWN
+                and event.button == 1
+            ):
 
-                mouse_position = pygame.mouse.get_pos()
-
+                mouse_position = event.pos
 
                 tab_clicked = self.dashboard_renderer.handle_click(
                     mouse_position
@@ -532,6 +558,14 @@ class SimulationWindow:
                     pygame.display.update()
 
                     continue
+
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_F11:
+
+                    self.fullscreen = not self.fullscreen
+                    self._apply_window_mode()
+
         return True
     # ============================================
     # CCP KPI CALCULATOR

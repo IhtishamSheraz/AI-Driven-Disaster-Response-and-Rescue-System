@@ -1,0 +1,5 @@
+# AIDRA runtime dependencies
+pygame>=2.5
+
+# Optional: native UI experiments (not used by main.py)
+# PySide6>=6.6

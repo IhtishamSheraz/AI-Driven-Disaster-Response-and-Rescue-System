@@ -26,6 +26,7 @@ PANEL_BG = (7, 16, 24)
 BORDER = (78, 104, 124)
 TAB_IDLE = (220, 226, 232)
 TAB_ACTIVE = (68, 123, 255)
+TAB_HOVER = (170, 190, 230)
 
 
 class DashboardRenderer:
@@ -86,6 +87,12 @@ class DashboardRenderer:
         ]
 
         self.active_tab = "RESOURCE"
+        self.tab_rects = {}
+
+        # Auto-rotate report tables every N milliseconds.
+        self.auto_rotate_tabs = True
+        self.tab_rotation_interval = 5000
+        self.last_tab_rotation_tick = pygame.time.get_ticks()
 
         # =====================================================
         # LIVE LOGS
@@ -753,27 +760,26 @@ class DashboardRenderer:
     ):
 
         mx, my = mouse_pos
+        # Use exact rectangles from the latest draw.
+        # Fallback to static geometry if first click happens before draw.
+        tab_rects = self.tab_rects
+        if not tab_rects:
+            surface = pygame.display.get_surface()
+            screen_width = surface.get_width() if surface else 1200
+            dashboard_x = max(610, screen_width - 590)
+            start_x = dashboard_x + 25
+            tab_rects = {
+                tab: pygame.Rect(start_x + (index * 80), 70, 78, 30)
+                for index, tab in enumerate(self.tabs)
+            }
 
-        start_x = 665
-
-        for tab in self.tabs:
-
-            rect = pygame.Rect(
-                start_x,
-                70,
-                78,
-                30
-            )
-
+        for tab, rect in tab_rects.items():
             if rect.collidepoint(mx, my):
-
                 self.active_tab = tab
-
                 return True
 
-            start_x += 80
-
         return False
+
     # =========================================================
     # LIVE SEARCH TRACE LOGGER
     # =========================================================
@@ -1169,7 +1175,36 @@ class DashboardRenderer:
         environment
     ):
 
-        dashboard_x = 610
+        dashboard_x = max(610, screen.get_width() - 590)
+
+        # =====================================================
+        # AUTO-ROTATE TABS EVERY tab_rotation_interval ms
+        # =====================================================
+
+        if self.auto_rotate_tabs:
+
+            now_tick = pygame.time.get_ticks()
+
+            if (
+                now_tick - self.last_tab_rotation_tick
+                >= self.tab_rotation_interval
+            ):
+
+                current_index = 0
+
+                if self.active_tab in self.tabs:
+
+                    current_index = self.tabs.index(
+                        self.active_tab
+                    )
+
+                next_index = (
+                    current_index + 1
+                ) % len(self.tabs)
+
+                self.active_tab = self.tabs[next_index]
+
+                self.last_tab_rotation_tick = now_tick
 
         # =====================================================
         # BACKGROUND
@@ -1185,7 +1220,7 @@ class DashboardRenderer:
                 dashboard_x,
                 0,
                 590,
-                650
+                screen.get_height()
             )
         )
 
@@ -1213,63 +1248,38 @@ class DashboardRenderer:
         # =====================================================
 
         start_x = dashboard_x + 25
+        self.tab_rects = {}
+        mouse_x, mouse_y = pygame.mouse.get_pos()
 
         for tab in self.tabs:
 
             active = self.active_tab == tab
-
-            color = TAB_ACTIVE if active else TAB_IDLE
-
-            text_color = WHITE if active else BLACK
-
-            pygame.draw.rect(
-
-                screen,
-
-                color,
-
-                (
-                    start_x,
-                    70,
-                    78,
-                    30
-                ),
-
-                border_radius=6
-            )
+            tab_rect = pygame.Rect(start_x, 70, 78, 30)
+            hovered = tab_rect.collidepoint(mouse_x, mouse_y)
 
             if active:
+                color = TAB_ACTIVE
+            elif hovered:
+                color = TAB_HOVER
+            else:
+                color = TAB_IDLE
 
-                pygame.draw.rect(
+            text_color = WHITE if active else BLACK
+            self.tab_rects[tab] = tab_rect
 
-                    screen,
+            pygame.draw.rect(screen, color, tab_rect, border_radius=6)
 
-                    CYAN,
-
-                    (
-                        start_x,
-                        70,
-                        78,
-                        30
-                    ),
-
-                    2,
-
-                    border_radius=6
-                )
+            if active:
+                pygame.draw.rect(screen, CYAN, tab_rect, 2, border_radius=6)
+            elif hovered:
+                pygame.draw.rect(screen, CYAN, tab_rect, 1, border_radius=6)
 
             self.draw_text(
-
                 screen,
-
                 self.tab_font,
-
                 tab,
-
                 text_color,
-
                 start_x + 12,
-
                 79
             )
 
@@ -1280,9 +1290,7 @@ class DashboardRenderer:
         # =====================================================
 
         self.draw_panel(
-
             screen,
-
             dashboard_x + 15,
             120,
             560,
@@ -1307,17 +1315,7 @@ class DashboardRenderer:
                 environment
             )
 
-        
-
-        elif (
-
-            self.active_tab == "ML KNN"
-
-            or
-
-            self.active_tab == "ML NB"
-
-        ):
+        elif self.active_tab in ("ML KNN", "ML NB"):
 
             self.draw_ml_table(screen)
 
@@ -1328,18 +1326,15 @@ class DashboardRenderer:
         elif self.active_tab == "KPI":
 
             self.environment = environment
-
             self.draw_kpi_table(screen)
 
         elif self.active_tab == "DECISION":
 
             self.draw_log_table(
-
                 screen,
-
                 environment
             )
-        
+
     # =========================================================
     # RESOURCE TABLE
     # =========================================================

@@ -1368,4 +1368,4 @@ class AmbulanceRenderer:
             # SPEED
             # =====================================
 
-            pygame.time.delay(1300)
+            pygame.time.delay(1100)
